@@ -1,3 +1,7 @@
+// Kareem Mohamed Morsy		         , ID: 20190386, Group: CS-S3, Program: CS
+// Mohamed Ashraf Mohamed Ali        , ID: 20190424, Group: CS-S3, Program: CS
+// Mostafa Mahmoud Anwar Morsy Sadek , ID: 20190544, Group: CS-S3, Program: CS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -5,15 +9,14 @@
 #include "mpi.h"
 
 int main(int argc, char *argv[]) {
-    int numprocs, rank, namelen;
-    char processor_name[MPI_MAX_PROCESSOR_NAME];
+    int numprocs, rank;
     MPI_Status status; /* return status for recieve*/
     int num_bars, num_threads;
     int num_points = 0;
     int my_count;
     int size = 2;
 	int *dataset = malloc(sizeof(int)*size);
-    int max_input = INT_MIN, min_input = INT_MAX;
+    int max_input = INT_MIN;
     int rem, sum_disp = 0;
     int *send_counts, *displancements;
     int *sub_recv_buff, *main_recv_buff;
@@ -27,7 +30,6 @@ int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Get_processor_name(processor_name, &namelen);
 
     if (rank == 0){
         //User Input
@@ -81,22 +83,19 @@ int main(int argc, char *argv[]) {
 
     for (i = 0; i < my_count; i++) {
         if (sub_recv_buff[i] > max_input) max_input = sub_recv_buff[i];
-        if (sub_recv_buff[i] < min_input) min_input = sub_recv_buff[i];
     }
 
     MPI_Gather(&max_input, 1, MPI_INT, rank == 0 ? main_recv_buff : NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Gather(&min_input, 1, MPI_INT, rank == 0 ? main_recv_buff + numprocs : NULL, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 
 
     if (rank == 0){
         for (i = 0; i < numprocs*2; i++) {
             if (main_recv_buff[i] > max_input) max_input = main_recv_buff[i];
-            if (main_recv_buff[i] < min_input) min_input = main_recv_buff[i];
         }
 
-        step = (max_input - min_input) / num_bars;
-        if ((max_input - min_input) % num_bars != 0) step++;
+        step = max_input / num_bars;
+        if (max_input % num_bars != 0) step++;
 
         histogram = malloc(sizeof(int)*num_bars);
         omp_set_dynamic(0); //Disabling dynamic teams to garentee the required number of threads to be created
@@ -112,7 +111,7 @@ int main(int argc, char *argv[]) {
         {
             #pragma omp for schedule(static)
             for (i = 0; i < num_points; i++){
-                j = min_input+step;
+                j = step;
                 for (idx = 0; idx < num_bars; idx++){
                     if (dataset[i] < j){
                         #pragma omp critical
@@ -130,7 +129,7 @@ int main(int argc, char *argv[]) {
 
         j = step;
         idx = 0;
-        for (i = min_input; idx < num_bars; i+=step, j+=step, idx++){
+        for (i = 0; idx < num_bars; i+=step, j+=step, idx++){
             printf("The range start with %d, end with %d with count %d\n", idx != 0 ? i + 1 : i, i+step, histogram[idx]);
         }
     }
