@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 
 
     if (rank == 0){
-        for (i = 0; i < numprocs*2; i++) {
+        for (i = 0; i < numprocs; i++) {
             if (main_recv_buff[i] > max_input) max_input = main_recv_buff[i];
         }
 
